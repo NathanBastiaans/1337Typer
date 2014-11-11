@@ -29,8 +29,8 @@
 			typer.setText();
 			
 			$(document).ready(function () {
-				$(document).keydown(function () {
-					typer.write();
+				$(document).keydown(function (key) {
+					typer.write(key);
 				});
 			});
 		</script>
