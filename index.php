@@ -21,7 +21,6 @@
 		
 	</head>
 	<body>
-		/* This code is property of me and only me */
 		<pre id="console"></pre>
 		
 		<script>
