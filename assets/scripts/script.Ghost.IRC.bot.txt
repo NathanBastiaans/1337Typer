@@ -1,0 +1,145 @@
+<?php
+set_time_limit(0);
+ini_set('display_errors', 'on');
+
+$config = array( 
+        'server'	=> 'irc.boxxy.be', 
+        'port'		=> 6667, 
+        'channel'	=> '#bots',
+        'name'		=> 'Geest_test', 
+        'nick'		=> 'Geest_test',
+        //'pass'		=> 'ghostbotpass', 
+);
+
+class IRCBot {
+
+    var $socket; 
+    var $ex = array(); 
+
+    function __construct($config) 
+    { 
+        $this->socket = fsockopen($config['server'], $config['port']); 
+        $this->login($config); 
+        $this->main($config); 
+       
+    } 
+
+    function login($config) 
+    { 
+        $this->send_data('USER', $config['nick'].' Hackflag.org '.$config['nick'].' :'.$config['name']); 
+        $this->send_data('NICK', $config['nick']); 
+    } 
+
+    function main($config) 
+    { 
+        $data = fgets($this->socket, 128); 
+        echo nl2br($data);
+		$data_stored = $data;
+		if(strpos($data, "/MOTD") || strpos($data, "005")) {
+		 $this->send_data('JOIN', '#bots'); 
+		}
+        flush(); 
+        $this->ex = explode(' ', $data); 
+
+        if($this->ex[0] == 'PING') 
+        { 
+            $this->send_data('PONG', $this->ex[1]); //Plays ping-pong with the server to stay connected. 
+        } 
+
+        $command = strtolower(str_replace(array(chr(10), chr(13)), '', $this->ex[3])); 
+		$username= explode("!", $data_stored);
+		$username= substr($username[0], 1);
+		
+		if($username == "Ghost") { // admin commands
+			switch($command) 
+			{
+				case ':!join': 
+					$this->join_channel($this->ex[4]); 
+					 break; 
+					 
+				case ':!forcequit': 
+					$this->send_data('QUIT', 'Ghost_bot gots to go!'); 
+					exit; 
+			}
+		}
+		
+        switch($command) //List of commands the bot responds to from a user. 
+        { 
+			case ':!say':
+				$message = "";
+				for($i=4; $i <= (count($this->ex)); $i++)
+				{ $message .= $this->ex[$i]." "; }
+				
+				$this->send_data('PRIVMSG '.$config['channel'].' :', $message);
+				break;
+				
+			case ':!ishetalweekend':
+				$day = date("D", strtotime("NOW"));
+				if($day == "Sat" || $day == "Sun")	{ $message = "Het is weekend"; }
+				else								{ $message = "Helaas is het nog geen weekend"; }
+				
+				$this->send_data('PRIVMSG '.$config['channel'].' :', $message);
+				break;
+				
+			case ':!ishetalbiertijd':
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "Het is altijd bier tijd!");
+				break;
+				
+			case ':!ishetalvodkatijd':
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "Het is altijd vodka tijd!");
+				break;
+
+			case ':!md5':
+				$message = "";
+				for($i=4; $i <= (count($this->ex)); $i++)
+				{ $message .= $this->ex[$i]." "; }
+				
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "0".$message."0");
+				break;	
+			
+				
+				
+			case ':!help': 
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "Ghost_bot kent de volgende commands:");
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "!say <text>        > zegt <text>");
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "!ishetalweekend    > Laat zien of het al weekend is");
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "!ishetalbiertijd   > Laat zien of het al bier tijd is");
+				$this->send_data('PRIVMSG '.$config['channel'].' :', "!!ishetalvodkatijd > Laat zien of het al vodka tijd is");
+
+				//  - smack <persoon>	> pimp slaps <persoon> 
+				break;
+				
+        }
+
+        $this->main($config);
+    }
+
+    function send_data($cmd, $msg = null) //displays stuff to the broswer and sends data to the server.
+    { 
+        if($msg == null)
+        {
+            fputs($this->socket, $cmd."\r\n");
+            echo '<strong>'.$cmd.'</strong><br />';
+        } else { 
+            fputs($this->socket, $cmd.' '.$msg."\r\n"); 
+            echo '<strong>'.$cmd.' '.$msg.'</strong><br />'; 
+        }
+    }
+
+    function join_channel($channel) //Joins a channel, used in the join function. 
+    { 
+        if(is_array($channel)) 
+        { 
+            foreach($channel as $chan) 
+            { 
+                $this->send_data('JOIN', $chan); 
+            } 
+        } else { 
+            $this->send_data('JOIN', $channel); 
+        } 
+    } 
+}
+
+$bot = new IRCBot($config); 
+
+?>

@@ -1,0 +1,158 @@
+<?php
+if(!defined("GHOST_CMS")) {
+	die("Direct access to this file is not allowed!");
+}
+
+class DataBase {
+	public $query_counter = 0;
+	public $link;
+	public $errors = array();
+	public $query_time = 0;
+	
+	public function __construct()
+	{
+		global $config;
+		$this->link = @mysqli_connect($config['db_host'], $config['db_user'], $config['db_pass']);
+
+		// No successful connection
+		if(!$this->link) {
+			die("Can't connect to the database");
+		}
+
+		// Select database
+		if(!mysqli_select_db($this->link, $config['database']))
+		{
+			die("Can't select the correct database");
+		}
+	}
+	
+	function __destruct() {
+		@mysqli_close($this->link);
+	}
+	
+	public function escape($val) {
+		return mysqli_real_escape_string($this->link, $val);
+	}
+	
+	public function query($sql) {
+		
+		$this->get_execution_time();
+		
+		$query = mysqli_query($this->link, $sql);
+		
+		$query_time = $this->get_execution_time();
+		$this->query_time += $query_time;
+		$this->query_counter++;
+		
+		if(!$query) {
+			array_push($this->errors, mysqli_error($this->link));
+		}
+		
+		return $query;	
+	}
+	
+	function simple_select($table, $fields="*", $conditions="", $order=" `id` DESC") {
+		$sql = "SELECT ".$fields." FROM ".$table;
+		
+		if($conditions != "") {
+			$sql .= " WHERE ".$conditions;
+		}
+		
+		$sql .= " ORDER BY ".$order;
+		
+		return $this->query($sql);
+	}
+	
+	function insert($table, $values) {
+		if(!is_array($values)) {
+			return false;
+		}
+	
+		$sql = "INSERT INTO `".$table."` SET ";
+		foreach($values as $value => $key) {
+			$sql .= "`".$value."`='".$key."',";
+		}
+		$sql = substr($sql , 0,-1);
+		
+		$this->query($sql);
+		
+		return $this->insert_id();
+	}
+	
+	// update
+	function update($table, $values, $unique, $col="id") {
+		if(!is_array($values)) {
+			return false;
+		}
+	
+		$sql = "UPDATE `".$table."` SET ";
+		foreach($values as $value => $key) {
+			$sql .= "`".$value."`='".$key."',";
+		}
+		
+		$sql = substr($sql , 0,-1);
+		$sql.= " WHERE `".$col."` = '".$unique."' ";
+		$this->query($sql);
+	}
+	
+	// delete
+	function delete($table, $unique, $col = "id") {
+
+		$sql = "DELETE FROM ".$table." WHERE `".$col."` = '".$unique."'";
+		$this->query($sql);
+
+	}
+	
+	function fetch_array($query) {
+		if($this->num_rows($query) > 1) {
+			$array = array();
+			while($row = mysqli_fetch_assoc($query)){
+				array_push($array, $row);
+			}
+		} else {
+			$array = mysqli_fetch_assoc($query);
+		}
+		return $array;
+	}
+	
+	function fetch_array_on_key($query) {
+		$array = array();
+		while($row = mysqli_fetch_array($query)) {
+			$array[$row[0]] = $row[1];
+		}
+		return $array;
+	}
+	
+	function num_rows($query) {
+		return mysqli_num_rows($query);
+	}
+
+	function insert_id() {
+		$id = mysqli_insert_id($this->link);
+		return $id;
+	}
+	
+	function get_execution_time()
+	{
+		static $time_start;
+
+		$time = microtime(true);
+
+		// Just starting timer, init and return
+		if(!$time_start)
+		{
+			$time_start = $time;
+			return;
+		}
+		// Timer has run, return execution time
+		else
+		{
+			$total = $time-$time_start;
+			if($total < 0) $total = 0;
+			$time_start = 0;
+			return $total;
+		}
+	}
+}
+
+?>
