@@ -32,8 +32,14 @@
 				$(document).keydown(function (key) {
 					typer.write(key);
 				});
+				
+				$('body, html, div').click(function () {
+					$('.input').focus();
+				});
 			});
 		</script>
+		
+		<input type="text" class="focus" />
 		
 	</body>
 </html>
